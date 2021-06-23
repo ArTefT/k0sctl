@@ -53,6 +53,11 @@ func (l Linux) K0sBinaryPath() string {
 	return "/usr/local/bin/k0s"
 }
 
+// K0sDataPath returns the location of k0s data
+func (l Linux) K0sDataPath() string {
+	return "/var/lib/k0s"
+}
+
 // K0sConfigPath returns the location of k0s configuration file
 func (l Linux) K0sConfigPath() string {
 	return "/etc/k0s/k0s.yaml"
@@ -111,12 +116,12 @@ func (l Linux) DeleteFile(h os.Host, path string) error {
 
 // KubeconfigPath returns the path to a kubeconfig on the host
 func (l Linux) KubeconfigPath() string {
-	return "/var/lib/k0s/pki/admin.conf"
+	return l.K0sDataPath() + "/pki/admin.conf"
 }
 
 // KubectlCmdf returns a command line in sprintf manner for running kubectl on the host using the kubeconfig from KubeconfigPath
 func (l Linux) KubectlCmdf(s string, args ...interface{}) string {
-	return l.K0sCmdf(`kubectl --kubeconfig "%s" %s`, l.KubeconfigPath(), fmt.Sprintf(s, args...))
+	return l.K0sCmdf(`kubectl %s`, fmt.Sprintf(s, args...))
 }
 
 // HTTPStatus makes a HTTP GET request to the url and returns the status code or an error

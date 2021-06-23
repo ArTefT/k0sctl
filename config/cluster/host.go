@@ -45,6 +45,7 @@ type configurer interface {
 	K0sCmdf(string, ...interface{}) string
 	K0sBinaryPath() string
 	K0sConfigPath() string
+	K0sDataPath() string
 	K0sJoinTokenPath() string
 	WriteFile(os.Host, string, string, string) error
 	UpdateEnvironment(os.Host, map[string]string) error
@@ -159,7 +160,29 @@ func (h *Host) K0sConfigPath() string {
 		return path
 	}
 
+	if path := h.InstallFlags.GetValue("--data-dir"); path != "" {
+		return path + "/pki/admin.conf"
+	}
+
 	return h.Configurer.K0sConfigPath()
+}
+
+// K0sDataPath returns the data file path from install flags or configurer
+func (h *Host) K0sDataPath() string {
+	if path := h.InstallFlags.GetValue("--data-dir"); path != "" {
+		return path
+	}
+	return h.Configurer.K0sDataPath()
+}
+
+// KubeconfigPath return kubeconf with data path dir
+func (h *Host) KubeconfigPath() string {
+	return  h.K0sDataPath() + "/pki/admin.conf"
+}
+
+// KubectlCmdf returns a command line in sprintf manner for running kubectl on the host using the kubeconfig from KubeconfigPath
+func (h *Host) KubectlCmdf(s string, args ...interface{}) string {
+	return h.Configurer.K0sCmdf(`kubectl --kubeconfig "%s" %s`, h.KubeconfigPath(), fmt.Sprintf(s, args...))
 }
 
 // K0sInstallCommand returns a full command that will install k0s service with necessary flags
@@ -246,7 +269,7 @@ type kubeNodeStatus struct {
 
 // KubeNodeReady runs kubectl on the host and returns true if the given node is marked as ready
 func (h *Host) KubeNodeReady(node *Host) (bool, error) {
-	output, err := h.ExecOutput(h.Configurer.KubectlCmdf("get node -l kubernetes.io/hostname=%s -o json", node.Metadata.Hostname), exec.HideOutput())
+	output, err := h.ExecOutput(h.Configurer.KubectlCmdf("get node -l kubernetes.io/hostname=%s -o json --data-dir %s", node.Metadata.Hostname, node.K0sDataPath()), exec.HideOutput())
 	if err != nil {
 		return false, err
 	}
